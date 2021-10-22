@@ -36,13 +36,18 @@ Joystick_ Joystick(
 	false                  // steering
 );
 
+float EMA_a = 0.25;
+int EMA_s = 0;
+
 void setup() {
-	/* Serial.begin(9600); */
+	Serial.begin(9600);
 	Joystick.begin();
 	Joystick.setXAxisRange(-512, 511);
 	Joystick.setYAxisRange(0, 1023);
 	pinMode(vibration_led_pin, OUTPUT);
 	pinMode(2, INPUT_PULLUP);
+
+	EMA_s = map(analogRead(wheel_pin), 0, 1023, -512, 511);
 }
 
 int old_wheel = 0;
@@ -65,9 +70,13 @@ void loop() {
 	}
 
 	int wheel = map(analogRead(wheel_pin), 0, 1023, -512, 511);
+	EMA_s = (EMA_a * wheel) + ((1 - EMA_a) * EMA_s);
+	wheel = EMA_s;
 	if (wheel != old_wheel) {
 		Joystick.setXAxis(wheel);
 		old_wheel = wheel;
+		Serial.print("-512,512,");
+		Serial.println(wheel);
 	}
 
 	int accel = analogRead(accel_pin);
@@ -82,6 +91,6 @@ void loop() {
 		old_brake = brake;
 	}
 
-	delay(5);
+	delay(50);
 }
 
