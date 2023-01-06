@@ -52,6 +52,7 @@ int vibration_toggle = 1;
 int wheel_min = 0, wheel_max = 0;
 int brake_min = 0, brake_max = 0;
 int accel_min = 0, accel_max = 0;
+int wheel_offset = 0;
 
 void buttonWait(int pin) {
   int buttonState = digitalRead(pin);
@@ -77,6 +78,11 @@ void calibrate() {
   buttonWait(vibration_btn_pin);
   ledBlink(vibration_led_pin);
 
+  wheel_offset = analogRead(wheel_pin) - 512;
+
+  buttonWait(vibration_btn_pin);
+  ledBlink(vibration_led_pin);
+
   brake_min = analogRead(brake_pin);
   accel_min = analogRead(accel_pin);
   wheel_min = analogRead(wheel_pin);
@@ -88,10 +94,12 @@ void calibrate() {
   accel_max = analogRead(accel_pin);
   wheel_max = analogRead(wheel_pin);
 
-  Serial.print(brake_min); Serial.println(brake_max);
-  Serial.print(accel_min); Serial.println(accel_max);
-  Serial.print(wheel_min); Serial.println(wheel_max);
+  Serial.print("Brake "); Serial.print(brake_min); Serial.print(" "); Serial.println(brake_max);
+  Serial.print("Accel "); Serial.print(accel_min); Serial.print(" "); Serial.println(accel_max);
+  Serial.print("Wheel "); Serial.print(wheel_min); Serial.print(" "); Serial.println(wheel_max);
+  Serial.print("Wheel offset "); Serial.println(wheel_offset);
 
+    buttonWait(vibration_btn_pin);
 }
 
 void setup() {
@@ -102,6 +110,13 @@ void setup() {
 	pinMode(vibration_led_pin, OUTPUT);
 	pinMode(vibration_btn_pin, INPUT_PULLUP);
 
+  // while(1) {
+  // 	Serial.print("0,1023,");
+  //   Serial.print(wheel_offset);
+  //   Serial.print(",");
+  //   Serial.println(analogRead(wheel_pin) - wheel_offset);
+  //   delay(50);
+  // }
   for (int thisReading = 0; thisReading < numReadings; thisReading++) {
     readings[thisReading] = 0;
   }
@@ -138,7 +153,7 @@ void loop() {
   // subtract the last reading:
   total = total - readings[readIndex];
   // read from the sensor:
-  readings[readIndex] = analogRead(wheel_pin);
+  readings[readIndex] = analogRead(wheel_pin) - wheel_offset;
   // add the reading to the total:
   total = total + readings[readIndex];
   // advance to the next position in the array:
@@ -155,11 +170,23 @@ void loop() {
  
 	//EMA_s = (EMA_a * wheel) + ((1 - EMA_a) * EMA_s);
 	//wheel = EMA_s;
-	if (average != old_wheel) {
-		Joystick.setXAxis(map(average, wheel_min, wheel_max, -512, 511));
+	if (average != old_wheel || 1) {
+    int x_value = map(average, wheel_min, wheel_max, -512, 511);
+		// Joystick.setXAxis(x_value);
 		old_wheel = average;
 		// Serial.print("-512,512,");
-		// Serial.println(wheel);
+    // Serial.print(wheel_offset); Serial.print(",");
+    // Serial.print(toto); Serial.print(",");
+    int smoothed = 0;
+    if (x_value > 0) {
+      smoothed = map(x_value, 0, 407, 0, 511);
+    }
+    else {
+      smoothed = map(x_value, -650, 0, -512, 0);
+    }
+    Joystick.setXAxis(smoothed);
+    // Serial.print(smoothed); Serial.print(",");
+		// Serial.println(x_value);
 	}
 
 	int accel = analogRead(accel_pin);
